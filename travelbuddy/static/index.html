@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TravelBuddy</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085; --border: #e3e6eb;
+    --accent: #0f766e; --accent-text: #ffffff; --tool: #fff7e6; --tool-border: #f4d58d; --error: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11151c; --panel: #1a2029; --text: #e6e9ef; --muted: #98a2b3; --border: #2c3440;
+            --accent: #2dd4bf; --accent-text: #0b1f1d; --tool: #2a2416; --tool-border: #6b5520; --error: #f97066; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 360px 1fr; gap: 20px; padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  form label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--bg); color: var(--text); font: inherit; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .check { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .check input { width: auto; }
+  button { margin-top: 16px; width: 100%; padding: 10px; border: 0; border-radius: 7px; background: var(--accent);
+    color: var(--accent-text); font: 600 15px system-ui, sans-serif; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: wait; }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); width: auto; padding: 6px 12px; margin: 0; font-size: 13px; }
+  #log { font: 12.5px/1.5 ui-monospace, monospace; display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  #log:empty { display: none; }
+  .ev { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); overflow-wrap: anywhere; }
+  .ev.tool { background: var(--tool); border-color: var(--tool-border); }
+  .ev .res { color: var(--muted); }
+  .ev.error { color: var(--error); border-color: var(--error); }
+  .ev.status { color: var(--muted); border-style: dashed; }
+  #plan { overflow-wrap: anywhere; }
+  #plan table { border-collapse: collapse; width: 100%; margin: 10px 0; display: block; overflow-x: auto; }
+  #plan th, #plan td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+  #plan h1 { margin-top: 0; }
+  #plan a { color: var(--accent); }
+  .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+  .toolbar { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+  #chat { display: none; margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px; }
+  #chat form { display: flex; gap: 8px; }
+  #chat button { width: auto; margin: 0; padding: 8px 16px; }
+  .msg-user { margin: 14px 0 6px; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>✈️ TravelBuddy</h1>
+  <p>Agentic travel planner: researches the web, checks the weather and fits the trip to your budget.</p>
+</header>
+<main>
+  <section class="card">
+    <form id="trip">
+      <label for="destination">Destination *</label>
+      <input id="destination" name="destination" required placeholder="e.g. Kyoto, Japan">
+      <label for="origin">Starting from</label>
+      <input id="origin" name="origin" placeholder="e.g. Bengaluru">
+      <div class="row">
+        <div><label for="start_date">Start date</label><input id="start_date" name="start_date" type="date"></div>
+        <div><label for="days">Days *</label><input id="days" name="days" type="number" min="1" max="60" value="5" required></div>
+      </div>
+      <div class="row">
+        <div><label for="budget">Total budget *</label><input id="budget" name="budget" type="number" min="1" step="any" required placeholder="1500"></div>
+        <div><label for="currency">Currency</label><input id="currency" name="currency" value="USD" maxlength="3" required></div>
+      </div>
+      <div class="row">
+        <div><label for="travelers">Travelers</label><input id="travelers" name="travelers" type="number" min="1" value="1"></div>
+        <div><label for="travel_style">Style</label>
+          <select id="travel_style" name="travel_style">
+            <option value="budget">Budget</option><option value="mid-range" selected>Mid-range</option><option value="luxury">Luxury</option>
+          </select></div>
+      </div>
+      <label class="check"><input type="checkbox" name="budget_includes_travel" checked> Budget includes travel to/from destination</label>
+      <label for="interests">Interests</label>
+      <input id="interests" name="interests" placeholder="food, history, hiking, nightlife...">
+      <label for="notes">Other notes</label>
+      <textarea id="notes" name="notes" rows="2" placeholder="vegetarian, travelling with kids, no flights..."></textarea>
+      <label for="model">Model</label>
+      <input id="model" name="model" list="models">
+      <datalist id="models"></datalist>
+      <button id="go" type="submit">Plan my trip</button>
+    </form>
+  </section>
+  <section class="card">
+    <div id="log"></div>
+    <div class="toolbar" id="toolbar" hidden><button class="secondary" id="download" type="button">Download .md</button></div>
+    <div id="plan"><div class="empty">Fill in your trip details and budget, and your plan will appear here.</div></div>
+    <div id="chat">
+      <div id="thread"></div>
+      <form id="chatform">
+        <input id="question" placeholder="Ask a follow-up, e.g. 'make it cheaper' or 'add a day trip'" autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let sessionId = null, lastPlan = "", busy = false;
+
+const render = (md) => DOMPurify.sanitize(marked.parse(md));
+function addLog(cls, html) {
+  const div = document.createElement("div");
+  div.className = "ev " + cls;
+  div.innerHTML = html;
+  $("log").appendChild(div);
+  div.scrollIntoView({block: "nearest"});
+  return div;
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+
+fetch("/api/models").then((r) => r.json()).then((d) => {
+  $("model").value = d.default;
+  $("models").innerHTML = d.models.map((m) => `<option value="${esc(m)}">`).join("");
+});
+
+async function streamEvents(url, body, onAnswer) {
+  busy = true;
+  $("go").disabled = true;
+  let statusEl = null;
+  const tools = {};
+  try {
+    const resp = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      const detail = Array.isArray(err.detail) ? err.detail.map((d) => d.loc.at(-1) + ": " + d.msg).join("; ") : err.detail;
+      addLog("error", esc(detail || resp.statusText));
+      return;
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, {stream: true});
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "session") sessionId = ev.id;
+        else if (ev.type === "status") {
+          if (!statusEl) statusEl = addLog("status", "");
+          statusEl.textContent = "⏳ " + ev.message;
+        } else if (ev.type === "tool_call") {
+          tools[ev.id] = addLog("tool", `🔧 <b>${esc(ev.name)}</b> ${esc(JSON.stringify(ev.arguments))}`);
+        } else if (ev.type === "tool_result") {
+          const el = tools[ev.id] || addLog("tool", esc(ev.name));
+          el.insertAdjacentHTML("beforeend", `<div class="res">↳ ${esc(ev.result)}</div>`);
+        } else if (ev.type === "answer") {
+          onAnswer(ev.content);
+        } else if (ev.type === "error") {
+          addLog("error", esc(ev.message));
+        }
+      }
+    }
+  } catch (e) {
+    addLog("error", esc(e.message || e));
+  } finally {
+    if (statusEl) statusEl.remove();
+    busy = false;
+    $("go").disabled = false;
+  }
+}
+
+$("trip").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (busy) return;
+  const f = new FormData(e.target);
+  const body = Object.fromEntries(f.entries());
+  body.days = Number(body.days);
+  body.travelers = Number(body.travelers || 1);
+  body.budget = Number(body.budget);
+  body.budget_includes_travel = f.has("budget_includes_travel");
+  if (!body.start_date) delete body.start_date;
+  $("log").innerHTML = "";
+  $("thread").innerHTML = "";
+  $("plan").innerHTML = '<div class="empty">Researching your trip… local models can take a few minutes.</div>';
+  $("chat").style.display = "none";
+  $("toolbar").hidden = true;
+  streamEvents("/api/plan", body, (md) => {
+    lastPlan = md;
+    $("plan").innerHTML = render(md);
+    $("toolbar").hidden = false;
+    $("chat").style.display = "block";
+  });
+});
+
+$("chatform").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = $("question").value.trim();
+  if (!q || busy || !sessionId) return;
+  $("question").value = "";
+  $("thread").insertAdjacentHTML("beforeend", `<div class="msg-user">You: ${esc(q)}</div>`);
+  streamEvents("/api/chat", {session_id: sessionId, message: q}, (md) => {
+    if (md.trimStart().startsWith("# ")) {  // a revised full plan replaces the current one
+      lastPlan = md;
+      $("plan").innerHTML = render(md);
+      $("thread").insertAdjacentHTML("beforeend", "<div>Plan updated above.</div>");
+    } else {
+      $("thread").insertAdjacentHTML("beforeend", `<div>${render(md)}</div>`);
+    }
+  });
+});
+
+$("download").addEventListener("click", () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lastPlan], {type: "text/markdown"}));
+  a.download = ($("destination").value || "trip").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-plan.md";
+  a.click();
+});
+</script>
+</body>
+</html>
